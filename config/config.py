@@ -2,3 +2,4 @@
 
 GLOBAL_NET_SCOPE = 'Global_Network'
 
+ENTROPY_BETA = 0.05
