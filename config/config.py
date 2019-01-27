@@ -10,4 +10,10 @@ UPDATE_ITER = 5
 
 MAX_STEP_IN_EPISODE = 2000
 
+LR_Actor = 0.001
+
+LR_Critic = 0.001
+
+LR_Shared = 0.002
+
 
