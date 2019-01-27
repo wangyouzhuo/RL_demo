@@ -7,8 +7,10 @@ from config.env_setup import env,N_Action,N_State
 
 class ACNetwork(object):
 
-    def __init__(self,scope,global_ACNet = None):
+    def __init__(self,scope,global_ACNet = None,session = None):
         # 初始化一个global_network ————只有state输入&基础前馈架构,不需要训练
+        self.sess = session
+
         if scope == GLOBAL_NET_SCOPE:
             with tf.variable_scope(scope):
                 self.s = tf.placeholder(tf.float32 ,[None,N_State] ,'State_input' )
@@ -43,36 +45,22 @@ class ACNetwork(object):
                     self.actor_loss = ENTROPY_BETA*entropy + experience
                     self.actor_grad = tf.gradients(self.actor_loss,self.actor_params)
                 with tf.name_scope('shared_loss'):
-                    self.public_loss_from_actor = tf.gradients(self.actor_loss , self.public_params)
-                    self.public_loss_from_critic = tf.gradients(self.critic_loss , self.public_params)
+                    self.public_grads_from_actor = tf.gradients(self.actor_loss , self.public_params)
+                    self.public_grads_from_critic = tf.gradients(self.critic_loss , self.public_params)
                 #每个local_network还具有 “push经验给global_network” ，“从global_network中pull参数给自己”的功能
                 with tf.name_scope('sync'): # 从global_network中pull参数给自己
                     with tf.name_scope('pull'):
                         #  x.assing(y)   把y赋值给x
                         self.pull_actor_params_op = [ local_params.assign(global_params) for local_params,global_params in zip(self.actor_params,global_ACNet.actor_params)]
                         self.pull_critic_params_op = [ local_params.assign(global_params) for local_params,global_params in zip(self.critic_params,global_ACNet.critic_params)]
+                        self.pull_shared_params_op = [ local_params.assign(global_params) for local_params,global_params in zip(self.public_params,global_ACNet.public_params)]
+
                     with tf.name_scope('push'):   # push经验给global_network 即 用local的梯度更新global
                         # OPA_AC 是针对不同AC设计的优化器
-                        self.update_global_actor = OPT_Actor.apply_gradients(zip(self.actor_grad ,global_ACNet.actor_params))
-                        self.update_global_actor = OPT_Critic.apply_gradients(zip(self.critic_grad ,global_ACNet.critic_params))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                        self.update_global_actor  = OPT_Actor.apply_gradients(zip(self.actor_grad ,global_ACNet.actor_params))
+                        self.update_global_critic = OPT_Critic.apply_gradients(zip(self.critic_grad ,global_ACNet.critic_params))
+                        self.update_global_shared_from_actor = OPT_Shared.apply_gradients(zip(self.public_grads_from_actor ,global_ACNet.public_params))
+                        self.update_global_shared_from_critic = OPT_Shared.apply_gradients(zip(self.public_grads_from_critic ,global_ACNet.public_params))
 
 
     def _build_net(self,scope):
@@ -87,5 +75,62 @@ class ACNetwork(object):
         actor_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES , scope = scope+'/Actor_layer')
         critic_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES , scope = scope +'/Critic_layer')
         return action_pro , state_value ,public_params ,actor_params ,critic_params
+
+    # 用local自己的梯度更新global的参数
+    def update_global_params(self,feed_dict):
+        self.sess.run([self.update_global_actor , self.update_global_critic ,self.update_global_shared_from_actor,self.update_global_shared_from_critic],feed_dict)
+
+    # 获取global的参数 ，用global的参数更新自己的参数
+    def pull_params_from_global(self):
+        self.sess.run([self.pull_shared_params_op,self.pull_actor_params_op,self.pull_critic_params_op])
+
+    #
+    def choose_actin(self,s):
+         action_prob = self.sess.run(self.action_pro , feed_dict= {self.s:s[np.newaxis,:]})
+         action = np.random.choice(range[N_Action],p = action_prob.ravel())
+         return action
+
+class worker(object):
+
+    def __init__(self,name,global_ACNet,sess):
+        self.env = None
+        self.name = name
+        self.sess = sess
+        self.AC_Net = ACNetwork(name,global_ACNet = global_ACNet,session = sess)
+
+    def work(self):
+        global GLOBAL_EPISODE_COUNT , GLOBAL_REWARD_SUM
+        total_step = 1  # 总的步数
+        buffer_state,buffer_action,buffer_reward = [],[],[]
+        while not COORD.should_stop() and GLOBAL_EPISODE_COUNT <= MAX__EPISODE:
+            state = reset_env(self.env)
+            rewar_in_episode = 0
+            while True:
+                 action = self.AC_Net.choose_actin(state)
+                 state_next,reward,done,info = take_action(self.env,state)
+                 buffer_action.append(action)
+                 buffer_reward.append(reward)
+                 buffer_state.append(state)
+                 if total_step%UPDATE_ITER == 0 or done:
+                    # 开始更新参数 ————>  计算 训练需要feed in local_network 的
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
