@@ -116,20 +116,17 @@ class worker(object):
         self.sess = sess
         self.AC_Net = ACNetwork(name,global_ACNet = global_ACNet,session = sess,optimizer_list = optimizer_list,n_a=n_a,n_s=n_s)
 
-    def compute_v_target(self,buffer_reward,v_next):
+    def compute_v_target(self,buffer_v_target,buffer_reward,v_next):  # buffer_v_target,buffer_reward,v_next
         gamma = 0.99
-        v_target = []
-
-        buffer_v_target = []
         for r in buffer_reward[::-1]:  # reverse buffer r
             v_next = r + gamma * v_next
             buffer_v_target.append(v_next)  # buffer_v_target 和 buffer_r 长度是一样的
         buffer_v_target.reverse()
 
-        print("---------")
-        print("buffer reward",buffer_reward)
-        print("v_next",v_next)
-        print('v_target',buffer_v_target)
+        # print("---------")
+        # print("buffer reward",buffer_reward)
+        # print("v_next",v_next)
+        # print('v_target',buffer_v_target)
         return buffer_v_target
 
     def work(self):
@@ -155,7 +152,9 @@ class worker(object):
                         v_next = 0
                     else:
                         v_next = self.sess.run(self.AC_Net.v_estimated,{self.AC_Net.state:state_next[np.newaxis,:]})[0,0]
-                    buffer_v_target = self.compute_v_target(buffer_reward,v_next)
+                    buffer_v_target = []
+                    # print(buffer_reward)
+                    buffer_v_target = self.compute_v_target(buffer_v_target,buffer_reward,v_next)
                     buffer_state,buffer_action,buffer_v_target = np.array(buffer_state),np.array(buffer_action),np.vstack(buffer_v_target)
                     feed_dict = {
                         self.AC_Net.state : buffer_state,
@@ -167,12 +166,15 @@ class worker(object):
                     #  global参数得到更新后，把新的global_net参数分发给local_net
                     self.AC_Net.pull_params_from_global()
                     buffer_state, buffer_action, buffer_reward = [], [], []
+                    # print(buffer_reward)
                 state = state_next
                 plus_global_episode_count()
-                total_step =+ 1
+                total_step = total_step + 1
+                #print(total_step)
                 if done or step_in_episode>=MAX_STEP_IN_EPISODE:
                     print("坚持了：",step_in_episode)
                     plus_global_episode_count()
+                    step_in_episode = 0
                     break
 
 
