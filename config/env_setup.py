@@ -8,7 +8,6 @@ def load_gym_env(env_name):
     return env
 
 def reset_env(env):
-    print(env)
     s = env.reset()
     return s
 

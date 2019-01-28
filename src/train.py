@@ -12,7 +12,7 @@ if __name__ =="__main__":
 
     reset_global_episode_count()
 
-    N_WORKERS = 1
+    N_WORKERS = 10
 
     SESS = tf.Session()
 
@@ -32,7 +32,8 @@ if __name__ =="__main__":
         for i in range(N_WORKERS):
             env = load_gym_env('CartPole-v0')
             worker_name = "No.%s_worker"%i
-            workers.append(worker(name=worker_name,global_ACNet=GLOBAL_ACNet,sess = SESS,optimizer_list=OPT_LIST
+            workers.append(worker(name=worker_name,global_ACNet=GLOBAL_ACNet,
+                                  sess = SESS,optimizer_list=OPT_LIST
                                   ,coordinator=COORD,env = env,n_s=N_State,n_a=N_Action))
 
         SESS.run(tf.global_variables_initializer())
