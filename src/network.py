@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from config.config import GLOBAL_NET_SCOPE,ENTROPY_BETA,MAX__EPISODE,MAX_STEP_IN_EPISODE,UPDATE_ITER
 from config.config import plus_global_episode_count,reset_global_episode_count,get_global_episode_count
-from config.env_setup import take_action,reset_env
+from config.env_setup import take_action,reset_env,load_gym_env
 
 
 class ACNetwork(object):
@@ -93,25 +93,38 @@ class ACNetwork(object):
 
     #
     def choose_actin(self,s):
-         action_prob = self.sess.run(self.action_pro , feed_dict= {self.s:s[np.newaxis,:]})
-         action = np.random.choice(range[self.n_a],p = action_prob.ravel())
-         return action
+        action_prob = self.sess.run(self.action_pro , feed_dict= {self.s: s[np.newaxis, :]}  )
+
+        # print(s)
+        action = np.random.choice(range(action_prob.shape[1]),p=action_prob.ravel())
+        return action
 
 class worker(object):
 
-    def __init__(self,name,global_ACNet,sess,optimizer_list,coordinator,env = None):
+    def __init__(self,name,global_ACNet,sess,optimizer_list,coordinator,env = None,n_a = None,n_s = None):
         self.threading_coordinator = coordinator
         self.env = env
         self.name = name
         self.sess = sess
-        self.AC_Net = ACNetwork(name,global_ACNet = global_ACNet,session = sess,optimizer_list = optimizer_list)
+        self.AC_Net = ACNetwork(name,global_ACNet = global_ACNet,session = sess,optimizer_list = optimizer_list,n_a=n_a,n_s=n_s)
 
     def compute_v_target(self,buffer_reward,v_next):
-        return [0]*len(buffer_reward)+v_next
+        gamma = 0.95
+        v_target = []
+        #buffer_reward.reverse()
+        for reward in buffer_reward[::-1]:
+            v_next = gamma*v_next + reward
+            v_target.append(v_next)
+        v_target.reverse()
+        print("---------")
+        print("buffer reward",buffer_reward)
+        print("v_next",v_next)
+        print('v_target',v_target)
+        return v_target
 
     def work(self):
         global  GLOBAL_REWARD_SUM
-        total_step = 1  # 总的步数
+        total_step = 0  # 总的步数
         buffer_state,buffer_action,buffer_reward = [],[],[]
         while not self.threading_coordinator.should_stop() and get_global_episode_count() <= MAX__EPISODE:
             state = reset_env(self.env)
@@ -131,13 +144,14 @@ class worker(object):
                     if done:
                         v_next = 0
                     else:
-                        v_next = self.sess.run(self.AC_Net.v_estimated,{self.AC_Net.s:state_next})[0,0]
+                        v_next = self.sess.run(self.AC_Net.v_estimated,{self.AC_Net.s:state_next[np.newaxis,:]})[0,0]
                     buffer_v_target = self.compute_v_target(buffer_reward,v_next)
-                    buffer_state,buffer_action,buffer_v_target = np.array(buffer_state),np.array(buffer_action),np.array(buffer_v_target)
+                    buffer_state,buffer_action,buffer_v_target = np.array(buffer_state),np.array(buffer_action),np.vstack(buffer_v_target)
+                    print("buffer长度为:%s"%len(buffer_state))
                     feed_dict = {
-                        self.AC_Net.s:buffer_state,
-                        self.AC_Net.action_done:buffer_action,
-                        self.AC_Net.v_target:buffer_v_target
+                        self.AC_Net.s : buffer_state,
+                        self.AC_Net.action_done : buffer_action,
+                        self.AC_Net.v_target : buffer_v_target
                     }
                     # feed in 数据后 开始更新参数 。在ACNet中，我们更新的是global的参数
                     self.AC_Net.update_global_params(feed_dict)
@@ -146,8 +160,9 @@ class worker(object):
                     buffer_state, buffer_action, buffer_reward = [], [], []
                 state = state_next
                 plus_global_episode_count()
+                total_step =+ 1
                 if done or step_in_episode>=MAX_STEP_IN_EPISODE:
-                    GLOBAL_EPISODE_COUNT = GLOBAL_EPISODE_COUNT + 1
+                    plus_global_episode_count()
                     break
 
 
