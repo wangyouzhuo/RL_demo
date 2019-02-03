@@ -1,7 +1,7 @@
 
 GLOBAL_NET_SCOPE = 'Global_Network'
 
-ENTROPY_BETA = 0.05
+ENTROPY_BETA = 0.005
 
 MAX__EPISODE = 200000
 
@@ -22,7 +22,10 @@ global GLOBAL_EPISODE_COUNT
 
 
 
-
+"""
+对 全局变量GLOBAL_EPISODE_COUNT
+进行修改的几个op
+"""
 def plus_global_episode_count():
     global GLOBAL_EPISODE_COUNT
     GLOBAL_EPISODE_COUNT =+ 1

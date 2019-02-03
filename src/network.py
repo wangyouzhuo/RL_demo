@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from config.config import GLOBAL_NET_SCOPE,ENTROPY_BETA,MAX__EPISODE,MAX_STEP_IN_EPISODE,UPDATE_ITER
 from config.config import plus_global_episode_count,reset_global_episode_count,get_global_episode_count
-from config.env_setup import take_action,reset_env,load_gym_env
+from config.env_setup import take_action,reset_env,load_gym_env,show_or_not
 
 
 class ACNetwork(object):
@@ -55,9 +55,9 @@ class ACNetwork(object):
                     背后的含义是：一味增大原有的目标会使得我们越来越专注于某个固定的动作，从而减弱对环境的探索。如果我们在增大目标的同时增大一个“动作分布的熵”
                     就一定程度上更大范围的探索了环境
                     """
-                    #entropy = -tf.reduce_sum(self.action_pro*tf.log(self.action_pro),axis=1,keepdims=True)
-                    #self.actor_loss = ENTROPY_BETA*entropy + experience
-                    self.actor_loss  = -tf.reduce_mean(experience)
+                    entropy = -tf.reduce_sum(self.action_pro*tf.log(self.action_pro),axis=1,keepdims=True)
+                    self.actor_loss = ENTROPY_BETA*entropy - tf.reduce_mean(experience)
+                    #self.actor_loss  = -tf.reduce_mean(experience)
                     self.actor_grad = tf.gradients(self.actor_loss,self.local_actor_params)
                 with tf.name_scope('shared_loss'):
                     self.public_grads_from_actor = tf.gradients(self.actor_loss , self.local_public_params)
@@ -109,12 +109,15 @@ class ACNetwork(object):
 
 class worker(object):
 
-    def __init__(self,name,global_ACNet,sess,optimizer_list,coordinator,env = None,n_a = None,n_s = None):
+    def __init__(self,name,global_ACNet,sess,optimizer_list,
+                 coordinator,env = None,n_a = None,n_s = None,
+                 whe_show = None):
         self.threading_coordinator = coordinator
         self.env = env
         self.name = name
         self.sess = sess
         self.AC_Net = ACNetwork(name,global_ACNet = global_ACNet,session = sess,optimizer_list = optimizer_list,n_a=n_a,n_s=n_s)
+        show_or_not(env,whe_show)
 
     def compute_v_target(self,buffer_v_target,buffer_reward,v_next):  # buffer_v_target,buffer_reward,v_next
         gamma = 0.99

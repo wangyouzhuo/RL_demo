@@ -32,9 +32,15 @@ if __name__ =="__main__":
         for i in range(N_WORKERS):
             env = load_gym_env('CartPole-v0')
             worker_name = "No.%s_worker"%i
+            if i ==5:
+                whe_show = True
+            else:
+                whe_show = False
             workers.append(worker(name=worker_name,global_ACNet=GLOBAL_ACNet,
                                   sess = SESS,optimizer_list=OPT_LIST
-                                  ,coordinator=COORD,env = env,n_s=N_State,n_a=N_Action))
+                                  ,coordinator=COORD,env = env,
+                                  n_s=N_State,n_a=N_Action,
+                                  whe_show=whe_show))
 
         SESS.run(tf.global_variables_initializer())
 
