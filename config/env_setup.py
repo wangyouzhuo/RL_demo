@@ -23,7 +23,6 @@ def get_dim(env_name):
     return N_A,N_S
 
 
-
 def show_or_not(env,whether):
     if whether:
         env.render()

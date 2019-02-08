@@ -1,4 +1,4 @@
-from src.network import ACNetwork,worker
+from cusiroty_driven_A3C_agent.cusority_driven_A3C_network import ACNetwork,worker
 from config.config import GLOBAL_NET_SCOPE,LR_Actor,LR_Critic,LR_Shared
 import tensorflow as tf
 import threading
