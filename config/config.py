@@ -7,7 +7,7 @@ MAX__EPISODE = 200000
 
 UPDATE_ITER = 10
 
-MAX_STEP_IN_EPISODE = 2000
+MAX_STEP_IN_EPISODE = 20000
 
 LR_Actor = 0.001
 
@@ -28,7 +28,7 @@ global GLOBAL_EPISODE_COUNT
 """
 def plus_global_episode_count():
     global GLOBAL_EPISODE_COUNT
-    GLOBAL_EPISODE_COUNT =+ 1
+    GLOBAL_EPISODE_COUNT = GLOBAL_EPISODE_COUNT + 1
     return
 
 def reset_global_episode_count():
